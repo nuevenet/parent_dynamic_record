@@ -9,7 +9,10 @@
             {% endif %}
             {{ _self.renderItems(field.id, field.parent_dynamic_record.fields, field.value, field.parent_dynamic_record) }}
         </div>
-        <button class="btn btn-success btn-agregar-{{ field.id }}" onclick="addItem_{{ field.id }}(this)"><i class="glyphicon glyphicon-plus"></i> {{ field.parent_dynamic_record.btn_add_text|default('Agregar') }}</button>
+        <button class="btn btn-success btn-agregar-{{ field.id }}" onclick="addItem_{{ field.id }}(this)">
+            <i class="glyphicon glyphicon-plus"></i>
+            {{ field.parent_dynamic_record.btn_add_text|default('Agregar') }}
+        </button>
         <span class="text-agregar-length text-muted font-italic padding5lr"></span>
     </div>
 
