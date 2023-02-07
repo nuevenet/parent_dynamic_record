@@ -1,0 +1,165 @@
+{% macro render(field) %}
+    
+    <div class="{{ field.id }}_items_box parent_dynamic_items_box dynamic_items_box">
+        <div class="{{ field.id }}_items_container">
+            {% if field.value is not iterable %}
+                {% set field = field|merge(
+                    { value : field.value|json_decode }
+                ) %}
+            {% endif %}
+            {{ _self.renderItems(field.id, field.parent_dynamic_record.fields, field.value, field.parent_dynamic_record) }}
+        </div>
+        <button class="btn btn-success btn-agregar-{{ field.id }}" onclick="addItem_{{ field.id }}(this)"><i class="glyphicon glyphicon-plus"></i> {{ field.parent_dynamic_record.btn_add_text|default('Agregar') }}</button>
+        <span class="text-agregar-length text-muted font-italic padding5lr"></span>
+    </div>
+
+    <style>
+        .form-group:has(> .{{ field.id }}_items_box) > label {
+            color: #444;
+            background: #d2d6de;
+            height: 42px;
+            padding: 9px 11px;
+            display: block;
+            margin-top: 36px;
+            margin-bottom: -1px;
+            font-size: 16px;
+            font-weight: 500;
+            border-bottom: 1px solid #f4f4f4;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+        }
+        .{{ field.id }}_items_box {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 3px;
+            border-bottom-left-radius: 3px;
+            padding: 10px;
+            border: 1px solid #d2d6de;
+            border-top: 0;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        .{{ field.id }}_item_container .form-group {
+            margin: 0px;
+        }
+        .{{ field.id }}_item_container {
+            padding-top: 30px;
+            padding-bottom: 10px;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        .{{ field.id }}_separator {
+            margin-top: 10px;
+            border-top: 1px solid #d2d6de;
+        }
+        .{{ field.id }}_items_box .dynamic_record_col {
+            padding-left: 5px;
+            padding-right: 5px;
+        }
+        .{{ field.id }}_items_box > .btn-agregar-{{ field.id }} {
+            margin-top: 20px;
+        }
+        .{{ field.id }}_items_box > .text-agregar-length {
+            margin-top: 11px;
+            display: inline-table;
+        }
+    </style>
+
+    <script>
+        window.addEventListener("DOMContentLoaded", function() {
+            fixInputs_{{ field.id }}();
+        });
+
+        function addItem_{{ field.id }}(element) {
+            if($(element).hasClass("disabled")) {
+                return;
+            }
+            var newItem = "{{ _self.renderItem(field.id, field.parent_dynamic_record.fields, null, field.parent_dynamic_record)|escape('js') }}";
+            $(element).parents(".{{ field.id }}_items_box:eq(0)").find(".{{ field.id }}_items_container").append(newItem);
+            fixInputs_{{ field.id }}();
+            initPlugins();
+            $(element).parents(".{{ field.id }}_items_box:eq(0)").find(".{{ field.id }}_item_container:last input:visible:eq(0)").focus();
+        }
+    
+        function removeItem_{{ field.id }}(element) {
+            $(element).parents(".{{ field.id }}_item_container").remove();
+            fixInputs_{{ field.id }}();
+        }
+
+        function controlCantidad_{{ field.id }}() {
+            {% if field.parent_dynamic_record.length %}
+                $(".parent_dynamic_items_box.{{ field.id }}_items_box").each(function() {
+                    var $items_box = $(this);
+                    if($items_box.find(".{{ field.id }}_item_container").length >= {{ field.parent_dynamic_record.length }}) {
+                        $items_box.find("> .btn-agregar-{{ field.id }}").addClass('disabled');
+                        $items_box.find("> .text-agregar-length").html('Límite alcanzado.');
+                    } else {
+                        $items_box.find("> .btn-agregar-{{ field.id }}").removeClass('disabled');
+                        $items_box.find("> .text-agregar-length").html('');
+                    }
+                });
+            {% endif %}
+        }
+        
+        function fixInputs_{{ field.id }}() {
+            $(".{{ field.id }}_item_container").each(function(index) {
+                $(this).find("[name]").each(function() {
+                    if($(this).parents(".dynamic_items_box:eq(0)").hasClass("{{ field.id }}_items_box")) {
+                        if(!$(this).attr('data-name')) {
+                            $(this).attr('data-name', $(this).attr('name'));
+                        }
+                        if($(this).attr('data-name').endsWith('[]')) {
+                            name = $(this).attr('data-name').substring(0, $(this).attr('data-name').length - 2);
+                            name = '['+name+'][]';
+                        } else {
+                            name = '['+$(this).attr('data-name')+']';
+                        }
+                        $(this).attr('name', '{{ field.id }}['+(index)+']'+name);
+                    }
+                });
+            });
+            //si queda un solo registro entonces agrego un hidden para guardar vacio
+            if($(".{{ field.id }}_item_container").length == 0) {
+                $(".{{ field.id }}_items_container").append("<input type='hidden' name='{{ field.id }}' class='hack'>");
+            } else {
+                //si quedan más registros entonces lo borro
+                $(".{{ field.id }}_items_container [name='{{ field.id }}'].hack").remove();
+            }
+            controlCantidad_{{ field.id }}();
+        }
+    </script>   
+{% endmacro %}
+
+{% macro renderItems(id, fields, values, config) %}
+    {% if values is iterable %}
+        {% for key, value in values %}
+            {{ _self.renderItem(id, fields, values[key], config) }}
+        {% endfor %}
+    {% endif %}
+{% endmacro %}
+
+{% macro renderItem(id, fields, values, config) %}
+    {% import 'form.html' as form %}
+    <div class="row {{ id }}_item_container" data-parent="{{ id }}">
+        <div class="col-xs-12">
+            <div class="row">
+                {% for key, field in fields %}
+                    {% if values %}
+                        {% set field = field|merge(
+                            { value : attribute(values, key) }
+                        ) %}
+                    {% endif %}
+                    {% if field.type == 'dynamic_record' %}
+                        {% set field = field|merge(
+                            { class_col : field.class_col ~ ' dynamic_record_col' }
+                        ) %}
+                    {% endif %}
+                    {{ form._render_field(field) }}
+                {% endfor %}
+            </div>
+        </div>
+        <div class="col-xs-12 text-right">
+            <button class="btn btn-danger btn-eliminar-{{ id }}" onclick="removeItem_{{ id }}(this)"><i class="glyphicon glyphicon-trash"></i> {{ config.btn_delete_text|default('Eliminar') }}</button>
+            <div class="{{ id }}_separator"></div>
+        </div>
+    </div>
+{% endmacro %}
